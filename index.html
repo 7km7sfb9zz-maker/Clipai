@@ -65,6 +65,10 @@ button {
     font-weight: bold;
 }
 
+button:active {
+    transform: scale(0.98);
+}
+
 #status {
     margin-top: 20px;
     color: #aaa;
@@ -81,6 +85,11 @@ button {
 .score {
     color: #7c5cff;
     font-weight: bold;
+}
+
+.duration {
+    color: #888;
+    margin-top: 10px;
 }
 
 </style>
@@ -107,10 +116,12 @@ Choose a video and let ClipAI analyse it.
 </p>
 
 <input
-type="file"
-id="video"
-accept="video/*"
+    type="file"
+    id="video"
+    accept="video/*"
 >
+
+<br>
 
 <button onclick="analyse()">
 Find Viral Clips
@@ -126,72 +137,190 @@ Find Viral Clips
 
 <script>
 
+function formatTime(seconds) {
+
+    seconds = Math.floor(seconds);
+
+    const minutes = Math.floor(seconds / 60);
+
+    const remainingSeconds = seconds % 60;
+
+    return (
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(remainingSeconds).padStart(2, "0")
+    );
+}
+
+
 function analyse() {
 
     const file =
-    document.getElementById("video").files[0];
+        document.getElementById("video").files[0];
 
     const status =
-    document.getElementById("status");
+        document.getElementById("status");
 
     const results =
-    document.getElementById("results");
+        document.getElementById("results");
 
     if (!file) {
 
         status.innerText =
-        "Please select a video first.";
+            "Please select a video first.";
 
         return;
 
     }
 
-    status.innerText =
-    "Uploading and analysing video...";
-
     results.innerHTML = "";
 
-    /*
-    TEMPORARY DEMO
+    status.innerText =
+        "Reading video duration...";
 
-    The real AI will replace this
-    once we connect the backend.
+
+    /*
+    Create a temporary video element
+    so the browser can read the actual
+    duration of the uploaded video.
     */
 
-    setTimeout(() => {
+    const video =
+        document.createElement("video");
+
+    video.preload = "metadata";
+
+
+    video.onloadedmetadata = function() {
+
+        const duration = video.duration;
+
+
+        /*
+        Safety check:
+        Make absolutely sure the duration
+        is a real positive number.
+        */
+
+        if (!Number.isFinite(duration) || duration <= 0) {
+
+            status.innerText =
+                "Could not determine video duration.";
+
+            return;
+
+        }
+
+
+        /*
+        DEMO CLIP
+
+        Start at 0 seconds.
+
+        The maximum possible end time
+        is ALWAYS the video's duration.
+        */
+
+        const start = 0;
+
+        let end = Math.min(
+            30,
+            duration
+        );
+
+
+        /*
+        If the video is extremely short,
+        make sure the end is still valid.
+        */
+
+        if (end > duration) {
+            end = duration;
+        }
+
+
+        /*
+        Final mathematical safety check.
+        */
+
+        const safeStart =
+            Math.max(0, Math.min(start, duration));
+
+        const safeEnd =
+            Math.max(
+                safeStart,
+                Math.min(end, duration)
+            );
+
 
         status.innerText =
-        "Analysis complete.";
+            "Analysis complete.";
+
 
         results.innerHTML = `
 
         <div class="clip">
 
-        <h3>🔥 Recommended Clip #1</h3>
+            <h3>🔥 Recommended Clip #1</h3>
 
-        <p>
-        <b>Time:</b> 02:14 – 02:47
-        </p>
+            <p>
+                <b>Video length:</b>
+                ${formatTime(duration)}
+            </p>
 
-        <p>
-        <b>Hook:</b>
-        "You won't believe what happened next..."
-        </p>
+            <p>
+                <b>Clip:</b>
+                ${formatTime(safeStart)}
+                –
+                ${formatTime(safeEnd)}
+            </p>
 
-        <p>
-        <b>Title:</b>
-        The moment everything changed
-        </p>
+            <p>
+                <b>Hook:</b>
+                Your most interesting moment starts here.
+            </p>
 
-        <p class="score">
-        Viral Score: 94/100
-        </p>
+            <p>
+                <b>Title:</b>
+                The moment everything changed
+            </p>
+
+            <p class="score">
+                Viral Score: 94/100
+            </p>
+
+            <p class="duration">
+                ✓ Timestamp verified against video length
+            </p>
 
         </div>
 
         `;
 
-    }, 2000);
+
+        /*
+        Release the temporary video object.
+        */
+
+        URL.revokeObjectURL(video.src);
+
+    };
+
+
+    video.onerror = function() {
+
+        status.innerText =
+            "This video could not be read.";
+
+    };
+
+
+    /*
+    Give the browser the uploaded video.
+    */
+
+    video.src =
+        URL.createObjectURL(file);
 
 }
 
