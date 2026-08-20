@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
 <title>ClipAI</title>
 
@@ -17,7 +20,11 @@ body {
     min-height: 100vh;
     background: #080808;
     color: white;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
+    font-family: -apple-system,
+                 BlinkMacSystemFont,
+                 "Segoe UI",
+                 Arial,
+                 sans-serif;
 }
 
 .container {
@@ -30,6 +37,7 @@ body {
 .logo {
     font-size: 52px;
     font-weight: 800;
+    letter-spacing: -2px;
 }
 
 .logo span {
@@ -49,7 +57,7 @@ body {
     padding: 35px 20px;
 }
 
-input {
+input[type="file"] {
     width: 100%;
     margin-top: 20px;
 }
@@ -63,15 +71,21 @@ button {
     color: white;
     font-size: 17px;
     font-weight: bold;
+    cursor: pointer;
 }
 
 button:active {
     transform: scale(0.98);
 }
 
+button:disabled {
+    opacity: 0.5;
+}
+
 #status {
     margin-top: 20px;
     color: #aaa;
+    min-height: 24px;
 }
 
 .clip {
@@ -82,38 +96,51 @@ button:active {
     text-align: left;
 }
 
+.success {
+    color: #66ff99;
+}
+
+.error {
+    color: #ff6666;
+}
+
 .score {
     color: #7c5cff;
     font-weight: bold;
 }
 
-.duration {
-    color: #888;
-    margin-top: 10px;
-}
-
 </style>
 </head>
 
+
 <body>
 
+
 <div class="container">
+
 
 <h1 class="logo">
 Clip<span>AI</span>
 </h1>
 
+
 <p class="subtitle">
 Turn long videos into short-form content.
 </p>
 
+
 <div class="upload">
 
-<h2>Upload a video</h2>
+
+<h2>
+Upload a video
+</h2>
+
 
 <p>
 Choose a video and let ClipAI analyse it.
 </p>
+
 
 <input
     type="file"
@@ -121,372 +148,380 @@ Choose a video and let ClipAI analyse it.
     accept="video/*"
 >
 
+
 <br>
 
-<button onclick="analyse()">
+
+<button
+    id="analyseButton"
+    onclick="analyse()"
+>
+
 Find Viral Clips
+
 </button>
+
 
 <div id="status"></div>
 
+
 <div id="results"></div>
 
-</div>
 
 </div>
+
+
+</div>
+
 
 <script>
+
+
+// ========================================
+// CLIPAI CONFIGURATION
+// ========================================
+
+const API_URL =
+"https://clipai-api.7km7sfb9zz.workers.dev";
+
+
+// ========================================
+// FORMAT SECONDS INTO MM:SS
+// ========================================
 
 function formatTime(seconds) {
 
     seconds = Math.floor(seconds);
 
-    const minutes = Math.floor(seconds / 60);
+    const minutes =
+        Math.floor(seconds / 60);
 
-    const remainingSeconds = seconds % 60;
+    const remaining =
+        seconds % 60;
 
     return (
-        String(minutes).padStart(2, "0") +
-        ":" +
-        String(remainingSeconds).padStart(2, "0")
+        String(minutes).padStart(2, "0")
+        + ":"
+        + String(remaining).padStart(2, "0")
     );
+
 }
 
 
-function async function analyse() {
+// ========================================
+// MAIN ANALYSIS FUNCTION
+// ========================================
+
+async function analyse() {
+
 
     const file =
         document.getElementById("video").files[0];
 
+
     const status =
         document.getElementById("status");
 
+
     const results =
         document.getElementById("results");
+
+
+    const button =
+        document.getElementById("analyseButton");
+
+
+    // ----------------------------------------
+    // Check for video
+    // ----------------------------------------
 
     if (!file) {
 
         status.innerText =
             "Please select a video first.";
 
+        status.className =
+            "error";
+
         return;
+
     }
+
+
+    // ----------------------------------------
+    // Reset interface
+    // ----------------------------------------
 
     results.innerHTML = "";
 
     status.innerText =
         "Reading video...";
 
+    status.className = "";
 
-    // Create video element
+    button.disabled = true;
+
+
+    // ----------------------------------------
+    // Create temporary video element
+    // ----------------------------------------
+
     const video =
         document.createElement("video");
 
-    video.preload = "metadata";
+
+    video.preload =
+        "metadata";
 
 
-    video.onloadedmetadata = async function() {
+    // ----------------------------------------
+    // When video metadata loads
+    // ----------------------------------------
 
-        const duration = video.duration;
-
-
-        // Make sure duration is valid
-        if (!Number.isFinite(duration) || duration <= 0) {
-
-            status.innerText =
-                "Could not determine video duration.";
-
-            return;
-        }
+    video.onloadedmetadata =
+        async function() {
 
 
-        status.innerText =
-            "Connecting to ClipAI AI...";
+            const duration =
+                video.duration;
 
 
-        try {
+            // --------------------------------
+            // Validate duration
+            // --------------------------------
 
-            const response = await fetch(
-                "https://clipai-api.7km7sfb9zz.workers.dev",
-                {
-                    method: "POST",
+            if (
+                !Number.isFinite(duration)
+                ||
+                duration <= 0
+            ) {
 
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                status.innerText =
+                    "Could not determine video duration.";
 
-                    body: JSON.stringify({
+                status.className =
+                    "error";
 
-                        // Temporary transcript.
-                        // Real transcription comes next.
-                        transcript:
-                            "This is a temporary test transcript.",
+                button.disabled = false;
 
-                        duration: duration
-
-                    })
-
-                }
-            );
-
-
-            const data =
-                await response.json();
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.error || "API error"
-                );
+                return;
 
             }
 
 
             status.innerText =
-                "ClipAI backend connected!";
+                "Video detected: "
+                + formatTime(duration)
+                + " — connecting to ClipAI...";
 
 
-            /*
-             * Display the information returned
-             * by the Worker.
-             */
+            // --------------------------------
+            // Send information to Worker
+            // --------------------------------
 
-            results.innerHTML = `
-
-                <div class="clip">
-
-                    <h3>✅ Backend Connected</h3>
-
-                    <p>
-                        <b>Video length:</b>
-                        ${formatTime(data.duration)}
-                    </p>
-
-                    <p>
-                        <b>Transcript received:</b>
-                        ${data.transcriptLength}
-                        characters
-                    </p>
-
-                    <p class="score">
-                        API connection successful
-                    </p>
-
-                </div>
-
-            `;
+            try {
 
 
-        } catch (error) {
+                const response =
+                    await fetch(
 
-            console.error(error);
+                        API_URL,
+
+                        {
+
+                            method: "POST",
+
+                            headers: {
+
+                                "Content-Type":
+                                    "application/json"
+
+                            },
+
+                            body:
+                                JSON.stringify({
+
+                                    transcript:
+                                        "Temporary test transcript.",
+
+                                    duration:
+                                        duration
+
+                                })
+
+                        }
+
+                    );
+
+
+                // --------------------------------
+                // Read Worker response
+                // --------------------------------
+
+                const data =
+                    await response.json();
+
+
+                // --------------------------------
+                // Check HTTP status
+                // --------------------------------
+
+                if (!response.ok) {
+
+                    throw new Error(
+
+                        data.error ||
+                        "Worker returned an error."
+
+                    );
+
+                }
+
+
+                // --------------------------------
+                // Success
+                // --------------------------------
+
+                status.innerText =
+                    "ClipAI backend connected!";
+
+                status.className =
+                    "success";
+
+
+                results.innerHTML = `
+
+                    <div class="clip">
+
+                        <h3>
+                            ✅ Backend Connected
+                        </h3>
+
+                        <p>
+
+                            <b>
+                                Video length:
+                            </b>
+
+                            ${formatTime(duration)}
+
+                        </p>
+
+                        <p>
+
+                            <b>
+                                Worker received:
+                            </b>
+
+                            ${formatTime(data.duration)}
+
+                        </p>
+
+                        <p>
+
+                            <b>
+                                Transcript received:
+                            </b>
+
+                            ${data.transcriptLength}
+                            characters
+
+                        </p>
+
+                        <p class="score">
+
+                            API connection successful
+
+                        </p>
+
+                    </div>
+
+                `;
+
+
+            }
+
+
+            // --------------------------------
+            // Error handling
+            // --------------------------------
+
+            catch (error) {
+
+
+                console.error(
+                    "ClipAI error:",
+                    error
+                );
+
+
+                status.innerText =
+                    "Could not connect to ClipAI.";
+
+                status.className =
+                    "error";
+
+
+                results.innerHTML = `
+
+                    <div class="clip">
+
+                        <h3>
+                            ❌ Connection Error
+                        </h3>
+
+                        <p>
+                            ${error.message}
+                        </p>
+
+                        <p>
+                            Check that your Worker is
+                            deployed and available.
+                        </p>
+
+                    </div>
+
+                `;
+
+            }
+
+
+            button.disabled = false;
+
+        };
+
+
+    // ----------------------------------------
+    // Video loading error
+    // ----------------------------------------
+
+    video.onerror =
+        function() {
 
             status.innerText =
-                "Could not connect to ClipAI API.";
+                "This video could not be read.";
 
-            results.innerHTML = `
+            status.className =
+                "error";
 
-                <div class="clip">
+            button.disabled = false;
 
-                    <h3>❌ Connection Error</h3>
-
-                    <p>
-                        ${error.message}
-                    </p>
-
-                </div>
-
-            `;
-
-        }
-
-    };
+        };
 
 
-    video.onerror = function() {
-
-        status.innerText =
-            "This video could not be read.";
-
-    };
-
+    // ----------------------------------------
+    // Give browser access to video metadata
+    // ----------------------------------------
 
     video.src =
         URL.createObjectURL(file);
 
 }
 
-    const file =
-        document.getElementById("video").files[0];
-
-    const status =
-        document.getElementById("status");
-
-    const results =
-        document.getElementById("results");
-
-    if (!file) {
-
-        status.innerText =
-            "Please select a video first.";
-
-        return;
-
-    }
-
-    results.innerHTML = "";
-
-    status.innerText =
-        "Reading video duration...";
-
-
-    /*
-    Create a temporary video element
-    so the browser can read the actual
-    duration of the uploaded video.
-    */
-
-    const video =
-        document.createElement("video");
-
-    video.preload = "metadata";
-
-
-    video.onloadedmetadata = function() {
-
-        const duration = video.duration;
-
-
-        /*
-        Safety check:
-        Make absolutely sure the duration
-        is a real positive number.
-        */
-
-        if (!Number.isFinite(duration) || duration <= 0) {
-
-            status.innerText =
-                "Could not determine video duration.";
-
-            return;
-
-        }
-
-
-        /*
-        DEMO CLIP
-
-        Start at 0 seconds.
-
-        The maximum possible end time
-        is ALWAYS the video's duration.
-        */
-
-        const start = 0;
-
-        let end = Math.min(
-            30,
-            duration
-        );
-
-
-        /*
-        If the video is extremely short,
-        make sure the end is still valid.
-        */
-
-        if (end > duration) {
-            end = duration;
-        }
-
-
-        /*
-        Final mathematical safety check.
-        */
-
-        const safeStart =
-            Math.max(0, Math.min(start, duration));
-
-        const safeEnd =
-            Math.max(
-                safeStart,
-                Math.min(end, duration)
-            );
-
-
-        status.innerText =
-            "Analysis complete.";
-
-
-        results.innerHTML = `
-
-        <div class="clip">
-
-            <h3>🔥 Recommended Clip #1</h3>
-
-            <p>
-                <b>Video length:</b>
-                ${formatTime(duration)}
-            </p>
-
-            <p>
-                <b>Clip:</b>
-                ${formatTime(safeStart)}
-                –
-                ${formatTime(safeEnd)}
-            </p>
-
-            <p>
-                <b>Hook:</b>
-                Your most interesting moment starts here.
-            </p>
-
-            <p>
-                <b>Title:</b>
-                The moment everything changed
-            </p>
-
-            <p class="score">
-                Viral Score: 94/100
-            </p>
-
-            <p class="duration">
-                ✓ Timestamp verified against video length
-            </p>
-
-        </div>
-
-        `;
-
-
-        /*
-        Release the temporary video object.
-        */
-
-        URL.revokeObjectURL(video.src);
-
-    };
-
-
-    video.onerror = function() {
-
-        status.innerText =
-            "This video could not be read.";
-
-    };
-
-
-    /*
-    Give the browser the uploaded video.
-    */
-
-    video.src =
-        URL.createObjectURL(file);
-
-}
 
 </script>
 
+
 </body>
+
 </html>
