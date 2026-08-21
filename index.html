@@ -88,6 +88,34 @@ button:disabled {
     text-align: left;
 }
 
+.hook {
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.hook-label {
+    color: #7c5cff;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.segment {
+    padding: 10px 0;
+    border-bottom: 1px solid #292929;
+}
+
+.segment-time {
+    color: #7c5cff;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.segment-text {
+    margin-top: 4px;
+    line-height: 1.5;
+}
+
 .success {
     color: #66ff99;
 }
@@ -219,18 +247,6 @@ async function analyse() {
     try {
 
 
-        /*
-         * Create multipart/form-data.
-         *
-         * IMPORTANT:
-         * We intentionally DO NOT set
-         * the Content-Type header ourselves.
-         *
-         * The browser automatically adds:
-         *
-         * multipart/form-data; boundary=...
-         */
-
         const formData =
             new FormData();
 
@@ -250,7 +266,6 @@ async function analyse() {
                 API_URL,
                 {
                     method: "POST",
-
                     body: formData
                 }
             );
@@ -291,13 +306,86 @@ async function analyse() {
 
 
         status.innerText =
-            "✅ AI transcription complete!";
+            "✅ AI analysis complete!";
 
         status.className =
             "success";
 
 
+        let segmentsHTML = "";
+
+
+        /*
+         * Display timestamped transcript
+         */
+
+        if (
+            data.segments &&
+            data.segments.length > 0
+        ) {
+
+            segmentsHTML =
+                data.segments.map(
+                    segment => {
+
+                        const start =
+                            formatTime(
+                                segment.start
+                            );
+
+                        const end =
+                            formatTime(
+                                segment.end
+                            );
+
+                        return `
+
+                            <div class="segment">
+
+                                <div class="segment-time">
+                                    ${start} → ${end}
+                                </div>
+
+                                <div class="segment-text">
+                                    ${escapeHTML(
+                                        segment.text || ""
+                                    )}
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    }
+                ).join("");
+
+        }
+
+
         results.innerHTML = `
+
+            ${
+                data.hook
+                ?
+                `
+                <div class="clip">
+
+                    <div class="hook-label">
+                        🧠 AI-GENERATED HOOK
+                    </div>
+
+                    <div class="hook">
+                        ${escapeHTML(
+                            data.hook
+                        )}
+                    </div>
+
+                </div>
+                `
+                :
+                ""
+            }
+
 
             <div class="clip">
 
@@ -305,12 +393,18 @@ async function analyse() {
                     🎙️ AI Transcript
                 </h3>
 
-                <p class="transcript">
-                    ${escapeHTML(
-                        data.transcript ||
-                        "No speech was detected."
-                    )}
-                </p>
+                ${
+                    segmentsHTML
+                    ||
+                    `
+                    <p class="transcript">
+                        ${escapeHTML(
+                            data.transcript ||
+                            "No speech was detected."
+                        )}
+                    </p>
+                    `
+                }
 
             </div>
 
@@ -362,6 +456,35 @@ async function analyse() {
 
 
     button.disabled = false;
+
+}
+
+
+function formatTime(seconds) {
+
+    seconds =
+        Number(seconds) || 0;
+
+
+    const minutes =
+        Math.floor(
+            seconds / 60
+        );
+
+
+    const remaining =
+        Math.floor(
+            seconds % 60
+        );
+
+
+    return (
+        String(minutes).padStart(2, "0")
+        +
+        ":"
+        +
+        String(remaining).padStart(2, "0")
+    );
 
 }
 
