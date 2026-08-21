@@ -1,3 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClipAI — AI Video Analyzer</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #080808;
+    color: #fff;
+}
+
+.container {
+    width: min(1000px, 92%);
+    margin: 0 auto;
+    padding: 50px 0;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.logo {
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: -2px;
+}
+
+.logo span {
+    color: #ff1744;
+}
+
+.subtitle {
+    color: #aaa;
+    margin-top: 10px;
+    font-size: 17px;
+}
+
+.card {
+    background: #111;
+    border: 1px solid #292929;
+    border-radius: 18px;
+    padding: 28px;
+    margin-bottom: 20px;
+}
+
+.upload {
+    border: 2px dashed #444;
+    border-radius: 16px;
+    padding: 45px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.upload:hover {
+    border-color: #ff1744;
+    background: #161616;
+}
+
+.upload input {
+    display: none;
+}
+
+.upload-icon {
+    font-size: 45px;
+    margin-bottom: 15px;
+}
+
+.upload-title {
+    font-size: 21px;
+    font-weight: 700;
+}
+
+.upload-subtitle {
+    color: #888;
+    margin-top: 8px;
+}
+
+button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 17px;
+    border: 0;
+    border-radius: 12px;
+    background: #ff1744;
+    color: white;
+    font-size: 18px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #e60035;
+}
+
+button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+#videoInfo {
+    display: none;
+    margin-top: 20px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.info {
+    background: #181818;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+}
+
+.info-value {
+    font-size: 19px;
+    font-weight: 800;
+}
+
+.info-label {
+    color: #777;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.warning {
+    display: none;
+    margin-top: 15px;
+    padding: 14px;
+    background: #251d00;
+    border: 1px solid #665000;
+    border-radius: 10px;
+    color: #ffd740;
+}
+
+#status {
+    margin-top: 18px;
+    text-align: center;
+    color: #aaa;
+    min-height: 22px;
+}
+
+.success {
+    color: #00e676 !important;
+}
+
+.error {
+    color: #ff5252 !important;
+}
+
+#progressContainer {
+    display: none;
+    margin-top: 25px;
+}
+
+.progress {
+    width: 100%;
+    height: 12px;
+    background: #222;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+#progressFill {
+    width: 0%;
+    height: 100%;
+    background: #ff1744;
+    transition: width .25s;
+}
+
+#progressText {
+    margin-top: 10px;
+    text-align: center;
+    color: #aaa;
+    font-size: 14px;
+}
+
+.clip {
+    background: #111;
+    border: 1px solid #292929;
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 20px;
+}
+
+.clip h2,
+.clip h3 {
+    margin-top: 0;
+}
+
+.viral {
+    border-color: #ff1744;
+}
+
+.score {
+    font-size: 35px;
+    font-weight: 900;
+    color: #ff1744;
+}
+
+.score-label {
+    color: #888;
+    margin-bottom: 15px;
+}
+
+.clip-time {
+    display: inline-block;
+    background: #1d1d1d;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+
+.reason {
+    color: #ccc;
+    line-height: 1.6;
+}
+
+.hook-label {
+    color: #ff1744;
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+
+.hook {
+    font-size: 23px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+.transcript {
+    color: #ccc;
+    white-space: pre-wrap;
+    line-height: 1.7;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+footer {
+    text-align: center;
+    color: #555;
+    margin-top: 40px;
+}
+
+@media (max-width: 700px) {
+    .container {
+        padding: 25px 0;
+    }
+
+    .logo {
+        font-size: 38px;
+    }
+
+    .info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .card {
+        padding: 18px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header>
+    <div class="logo">Clip<span>AI</span></div>
+    <div class="subtitle">
+        Upload a video and let AI find your strongest viral moments.
+    </div>
+</header>
+
+<div class="card">
+
+    <label class="upload" for="video">
+        <div class="upload-icon">🎬</div>
+
+        <div class="upload-title">
+            Choose a video
+        </div>
+
+        <div class="upload-subtitle">
+            MP4, MOV, WebM and other browser-supported formats
+        </div>
+
+        <input
+            id="video"
+            type="file"
+            accept="video/*"
+        >
+    </label>
+
+    <div id="videoInfo">
+
+        <div class="info-grid">
+
+            <div class="info">
+                <div
+                    class="info-value"
+                    id="durationInfo"
+                >
+                    —
+                </div>
+
+                <div class="info-label">
+                    Duration
+                </div>
+            </div>
+
+            <div class="info">
+                <div
+                    class="info-value"
+                    id="sizeInfo"
+                >
+                    —
+                </div>
+
+                <div class="info-label">
+                    File size
+                </div>
+            </div>
+
+            <div class="info">
+                <div
+                    class="info-value"
+                    id="chunksInfo"
+                >
+                    —
+                </div>
+
+                <div class="info-label">
+                    Audio chunks
+                </div>
+            </div>
+
+            <div class="info">
+                <div
+                    class="info-value"
+                    id="chunkSizeInfo"
+                >
+                    —
+                </div>
+
+                <div class="info-label">
+                    Chunk size
+                </div>
+            </div>
+
+        </div>
+
+        <div
+            id="timeInfo"
+            style="text-align:center;color:#888;margin-top:15px;"
+        >
+        </div>
+
+        <div
+            id="warning"
+            class="warning"
+        >
+        </div>
+
+    </div>
+
+    <button
+        id="analyseButton"
+        type="button"
+    >
+        🔥 Analyse Video
+    </button>
+
+    <div id="status"></div>
+
+    <div id="progressContainer">
+
+        <div class="progress">
+            <div id="progressFill"></div>
+        </div>
+
+        <div id="progressText">
+            Preparing...
+        </div>
+
+    </div>
+
+</div>
+
+<div id="results"></div>
+
+<footer>
+    ClipAI AI Video Analysis
+</footer>
+
+</div>
+
+
 <script type="module">
 
 import {
@@ -16,13 +431,14 @@ const API_URL =
 const CHUNK_MINUTES = 5;
 const CHUNK_SECONDS = CHUNK_MINUTES * 60;
 
-let fileInput;
-let button;
-let status;
-let results;
-let progressContainer;
-let progressFill;
-let progressText;
+
+let fileInput = null;
+let button = null;
+let status = null;
+let results = null;
+let progressContainer = null;
+let progressFill = null;
+let progressText = null;
 
 let ffmpeg = null;
 let ffmpegLoaded = false;
@@ -30,10 +446,16 @@ let videoDuration = 0;
 
 
 /* =========================================================
-   START AFTER HTML HAS LOADED
+   INITIALISE
 ========================================================= */
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener(
+    "DOMContentLoaded",
+    initialise
+);
+
+
+function initialise() {
 
     fileInput =
         document.getElementById("video");
@@ -57,31 +479,32 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("progressText");
 
 
-    /*
-     * Prevent a missing HTML element from
-     * causing the entire website to crash.
-     */
+    if (
+        !fileInput ||
+        !button ||
+        !status ||
+        !results
+    ) {
 
-    if (!fileInput) {
-        console.error("ClipAI: #video not found.");
-        return;
-    }
+        document.body.innerHTML = `
+            <div style="
+                color:white;
+                background:#080808;
+                min-height:100vh;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-family:Arial;
+                text-align:center;
+                padding:30px;
+            ">
+                <div>
+                    <h1>ClipAI failed to initialise.</h1>
+                    <p>Please refresh the page.</p>
+                </div>
+            </div>
+        `;
 
-
-    if (!button) {
-        console.error("ClipAI: #analyseButton not found.");
-        return;
-    }
-
-
-    if (!status) {
-        console.error("ClipAI: #status not found.");
-        return;
-    }
-
-
-    if (!results) {
-        console.error("ClipAI: #results not found.");
         return;
     }
 
@@ -92,24 +515,16 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
 
-    /*
-     * Make BOTH possible button methods work.
-     */
-
-    window.analyse = analyse;
-
-
     button.addEventListener(
         "click",
         analyse
     );
 
 
-    console.log(
-        "ClipAI frontend loaded successfully."
-    );
+    window.analyse =
+        analyse;
 
-});
+}
 
 
 /* =========================================================
@@ -120,6 +535,7 @@ function inspectVideo() {
 
     const file =
         fileInput.files[0];
+
 
     const panel =
         document.getElementById("videoInfo");
@@ -151,10 +567,31 @@ function inspectVideo() {
 
 
     video.onloadedmetadata =
-        function () {
+        function() {
 
             videoDuration =
-                video.duration;
+                Number(video.duration);
+
+
+            if (
+                !Number.isFinite(
+                    videoDuration
+                ) ||
+                videoDuration <= 0
+            ) {
+
+                status.innerText =
+                    "Could not determine video duration.";
+
+                status.className =
+                    "error";
+
+                URL.revokeObjectURL(
+                    objectURL
+                );
+
+                return;
+            }
 
 
             const chunks =
@@ -230,6 +667,7 @@ function inspectVideo() {
             if (timeInfo) {
 
                 timeInfo.innerText =
+                    "Estimated processing: " +
                     estimateProcessingTime(
                         videoDuration,
                         file.size
@@ -256,7 +694,7 @@ function inspectVideo() {
 
                 warning.innerHTML =
                     "⚠️ <strong>Long video detected.</strong><br>" +
-                    "ClipAI will process this in " +
+                    "ClipAI will process it in " +
                     chunks +
                     " audio chunks.";
 
@@ -273,7 +711,7 @@ function inspectVideo() {
 
                 warning.innerHTML =
                     "⚠️ <strong>Large file detected.</strong><br>" +
-                    "ClipAI will process the audio in smaller pieces.";
+                    "The audio will be processed in smaller pieces.";
 
             }
 
@@ -285,6 +723,13 @@ function inspectVideo() {
             }
 
 
+            status.innerText =
+                "Video ready.";
+
+            status.className =
+                "";
+
+
             URL.revokeObjectURL(
                 objectURL
             );
@@ -293,7 +738,7 @@ function inspectVideo() {
 
 
     video.onerror =
-        function () {
+        function() {
 
             if (panel) {
                 panel.style.display = "none";
@@ -452,13 +897,14 @@ async function analyse() {
             "error";
 
         return;
-
     }
 
 
     if (
         !videoDuration ||
-        !Number.isFinite(videoDuration)
+        !Number.isFinite(
+            videoDuration
+        )
     ) {
 
         status.innerText =
@@ -468,7 +914,6 @@ async function analyse() {
             "error";
 
         return;
-
     }
 
 
@@ -480,29 +925,14 @@ async function analyse() {
         "";
 
 
-    if (progressContainer) {
+    progressContainer.style.display =
+        "block";
 
-        progressContainer.style.display =
-            "block";
+    progressFill.style.width =
+        "0%";
 
-    }
-
-
-    if (progressFill) {
-
-        progressFill.style.width =
-            "0%";
-
-    }
-
-
-    if (progressText) {
-
-        progressText.innerText =
-            "Preparing your video...";
-
-    }
-
+    progressText.innerText =
+        "Preparing your video...";
 
     status.innerText =
         "Preparing your video...";
@@ -513,24 +943,12 @@ async function analyse() {
 
     try {
 
-        /* =================================================
-           LOAD FFMPEG
-        ================================================= */
-
         await loadFFmpeg();
 
 
         status.innerText =
             "🎬 Preparing video...";
 
-
-        progressText.innerText =
-            "Reading video...";
-
-
-        /*
-         * Store video inside browser FFmpeg memory.
-         */
 
         await ffmpeg.writeFile(
             "input.mp4",
@@ -553,7 +971,7 @@ async function analyse() {
 
 
         /* =================================================
-           TRANSCRIBE EVERY CHUNK
+           TRANSCRIBE CHUNKS
         ================================================= */
 
         for (
@@ -638,10 +1056,6 @@ async function analyse() {
                 );
 
 
-            /* =================================================
-               SEND AUDIO TO WORKER
-            ================================================= */
-
             progressText.innerText =
                 "🧠 Transcribing chunk " +
                 chunkNumber +
@@ -683,8 +1097,11 @@ async function analyse() {
                 await fetch(
                     API_URL,
                     {
-                        method: "POST",
-                        body: formData
+                        method:
+                            "POST",
+
+                        body:
+                            formData
                     }
                 );
 
@@ -708,7 +1125,7 @@ async function analyse() {
             catch {
 
                 throw new Error(
-                    "Worker returned invalid JSON: " +
+                    "Worker returned invalid JSON:\n" +
                     responseText
                 );
 
@@ -744,23 +1161,24 @@ async function analyse() {
                     "",
 
                 segments:
-                    data.segments ||
+                    Array.isArray(
+                        data.segments
+                    )
+                    ?
+                    data.segments
+                    :
                     []
 
             });
 
 
-            const completed =
-                chunkNumber;
-
-
             const percent =
                 Math.round(
                     (
-                        completed /
+                        chunkNumber /
                         totalChunks
                     ) *
-                    100
+                    80
                 );
 
 
@@ -777,25 +1195,23 @@ async function analyse() {
 
             const average =
                 elapsed /
-                completed;
+                chunkNumber;
 
 
             const remaining =
                 average *
                 (
                     totalChunks -
-                    completed
+                    chunkNumber
                 );
 
 
             progressText.innerText =
                 "✅ Chunk " +
-                completed +
+                chunkNumber +
                 " / " +
                 totalChunks +
-                " • " +
-                percent +
-                "% • ~" +
+                " • ~" +
                 formatDuration(
                     remaining
                 ) +
@@ -816,7 +1232,7 @@ async function analyse() {
 
 
         /* =================================================
-           BUILD COMPLETE TIMESTAMPED TRANSCRIPT
+           BUILD TIMESTAMPED TRANSCRIPT
         ================================================= */
 
         progressText.innerText =
@@ -833,42 +1249,52 @@ async function analyse() {
                 .map(
                     chunk => {
 
-                        /*
-                         * Use actual Whisper segments
-                         * where available so the second
-                         * AI gets useful timestamps.
-                         */
-
                         if (
                             chunk.segments &&
                             chunk.segments.length
                         ) {
 
                             return chunk.segments
-                                .map(segment => {
+                                .map(
+                                    segment => {
 
-                                    const relativeStart =
-                                        Number(
-                                            segment.start
-                                        ) || 0;
+                                        const relativeStart =
+                                            Number(
+                                                segment.start
+                                            ) || 0;
 
-                                    const absoluteStart =
-                                        chunk.start +
-                                        relativeStart;
+                                        const relativeEnd =
+                                            Number(
+                                                segment.end
+                                            ) ||
+                                            relativeStart;
 
-                                    return (
-                                        "[" +
-                                        formatTime(
-                                            absoluteStart
-                                        ) +
-                                        "] " +
-                                        (
-                                            segment.text ||
-                                            ""
-                                        )
-                                    );
+                                        const absoluteStart =
+                                            chunk.start +
+                                            relativeStart;
 
-                                })
+                                        const absoluteEnd =
+                                            chunk.start +
+                                            relativeEnd;
+
+                                        return (
+                                            "[" +
+                                            formatTime(
+                                                absoluteStart
+                                            ) +
+                                            " - " +
+                                            formatTime(
+                                                absoluteEnd
+                                            ) +
+                                            "] " +
+                                            (
+                                                segment.text ||
+                                                ""
+                                            )
+                                        );
+
+                                    }
+                                )
                                 .join("\n");
 
                         }
@@ -890,16 +1316,14 @@ async function analyse() {
 
 
         /* =================================================
-           SECOND AI STAGE
-           DEEP VIRAL ANALYSIS
+           SECOND AI — DEEP VIRAL ANALYSIS
         ================================================= */
 
         progressFill.style.width =
             "90%";
 
-
         progressText.innerText =
-            "🔥 Finding viral moments...";
+            "🔥 Performing deep viral analysis...";
 
 
         const analysisResponse =
@@ -937,7 +1361,7 @@ async function analyse() {
             await analysisResponse.text();
 
 
-        let analysisData = {};
+        let analysisData;
 
 
         try {
@@ -952,21 +1376,18 @@ async function analyse() {
         catch {
 
             throw new Error(
-                "Deep analysis returned invalid JSON: " +
+                "Deep analysis returned invalid JSON:\n" +
                 analysisText
             );
 
         }
 
 
-        if (
-            !analysisResponse.ok ||
-            analysisData.success === false
-        ) {
+        if (!analysisResponse.ok) {
 
             throw new Error(
                 analysisData.error ||
-                "Deep AI analysis failed."
+                "Deep viral analysis failed."
             );
 
         }
@@ -975,14 +1396,11 @@ async function analyse() {
         progressFill.style.width =
             "100%";
 
-
         progressText.innerText =
             "✅ Analysis complete";
 
-
         status.innerText =
             "✅ AI analysis complete!";
-
 
         status.className =
             "success";
@@ -1012,7 +1430,6 @@ async function analyse() {
                     </h2>
 
                     ${
-
                         analysisData
                             .viralClips
                             .map(
@@ -1021,120 +1438,120 @@ async function analyse() {
                                     index
                                 ) => `
 
-                                <div class="clip viral">
+                                    <div class="clip viral">
 
-                                    <h3>
-                                        🔥 Viral Clip #${
-                                            index + 1
-                                        }
-                                    </h3>
+                                        <h3>
+                                            🔥 Viral Clip #${
+                                                index + 1
+                                            }
+                                        </h3>
 
-                                    <div class="score">
+                                        <div class="score">
+                                            ${
+                                                escapeHTML(
+                                                    clip.score
+                                                )
+                                            }/100
+                                        </div>
+
+                                        <div class="score-label">
+                                            Viral potential
+                                        </div>
+
+                                        <div class="clip-time">
+                                            ⏱️
+                                            ${
+                                                formatTime(
+                                                    clip.start
+                                                )
+                                            }
+                                            →
+                                            ${
+                                                formatTime(
+                                                    clip.end
+                                                )
+                                            }
+                                        </div>
+
                                         ${
-                                            escapeHTML(
-                                                clip.score
-                                            )
-                                        }/100
-                                    </div>
-
-                                    <div class="score-label">
-                                        Viral potential
-                                    </div>
-
-                                    <div class="clip-time">
-                                        ⏱️
-                                        ${
-                                            formatTime(
-                                                clip.start
-                                            )
+                                            clip.hook
+                                            ?
+                                            `
+                                            <p>
+                                                🪝
+                                                <strong>
+                                                    ${
+                                                        escapeHTML(
+                                                            clip.hook
+                                                        )
+                                                    }
+                                                </strong>
+                                            </p>
+                                            `
+                                            :
+                                            ""
                                         }
-                                        →
-                                        ${
-                                            formatTime(
-                                                clip.end
-                                            )
-                                        }
-                                    </div>
 
-                                    ${
-                                        clip.hook
-                                        ?
-                                        `
-                                        <p>
-                                            🪝
-                                            <strong>
+                                        <p class="reason">
+                                            ${
+                                                escapeHTML(
+                                                    clip.reason ||
+                                                    "Strong potential moment."
+                                                )
+                                            }
+                                        </p>
+
+                                        ${
+                                            Array.isArray(
+                                                clip.strengths
+                                            ) &&
+                                            clip.strengths.length
+                                            ?
+                                            `
+                                            <p class="reason">
+                                                <strong>
+                                                    Why it works:
+                                                </strong>
                                                 ${
                                                     escapeHTML(
-                                                        clip.hook
+                                                        clip.strengths.join(
+                                                            " • "
+                                                        )
                                                     )
                                                 }
-                                            </strong>
-                                        </p>
-                                        `
-                                        :
-                                        ""
-                                    }
-
-                                    <p class="reason">
-                                        ${
-                                            escapeHTML(
-                                                clip.reason ||
-                                                "Strong potential moment."
-                                            )
+                                            </p>
+                                            `
+                                            :
+                                            ""
                                         }
-                                    </p>
 
-                                    ${
-                                        Array.isArray(
-                                            clip.strengths
-                                        ) &&
-                                        clip.strengths.length
-                                        ?
-                                        `
-                                        <p>
-                                            <strong>
-                                                Why it works:
-                                            </strong>
-                                            ${
-                                                escapeHTML(
-                                                    clip.strengths.join(
-                                                        " • "
+                                        ${
+                                            Array.isArray(
+                                                clip.weaknesses
+                                            ) &&
+                                            clip.weaknesses.length
+                                            ?
+                                            `
+                                            <p class="reason">
+                                                <strong>
+                                                    Weakness:
+                                                </strong>
+                                                ${
+                                                    escapeHTML(
+                                                        clip.weaknesses.join(
+                                                            " • "
+                                                        )
                                                     )
-                                                )
-                                            }
-                                        </p>
-                                        `
-                                        :
-                                        ""
-                                    }
+                                                }
+                                            </p>
+                                            `
+                                            :
+                                            ""
+                                        }
 
-                                    ${
-                                        Array.isArray(
-                                            clip.weaknesses
-                                        ) &&
-                                        clip.weaknesses.length
-                                        ?
-                                        `
-                                        <p>
-                                            <strong>
-                                                Weakness:
-                                            </strong>
-                                            ${
-                                                escapeHTML(
-                                                    clip.weaknesses.join(
-                                                        " • "
-                                                    )
-                                                )
-                                            }
-                                        </p>
-                                        `
-                                        :
-                                        ""
-                                    }
+                                    </div>
 
-                                </div>
-
-                            `
+                                `
                             )
                             .join("")
                     }
@@ -1167,7 +1584,7 @@ async function analyse() {
 
 
         /* =================================================
-           FINAL HOOK
+           HOOK
         ================================================= */
 
         const hookHTML =
@@ -1229,10 +1646,6 @@ async function analyse() {
         `;
 
 
-        /* =================================================
-           CLEAN FFMPEG MEMORY
-        ================================================= */
-
         try {
 
             await ffmpeg.deleteFile(
@@ -1242,7 +1655,6 @@ async function analyse() {
         }
 
         catch {}
-
 
     }
 
@@ -1254,25 +1666,14 @@ async function analyse() {
         );
 
 
-        if (progressFill) {
+        progressFill.style.width =
+            "0%";
 
-            progressFill.style.width =
-                "0%";
-
-        }
-
-
-        if (progressText) {
-
-            progressText.innerText =
-                "❌ Processing failed";
-
-        }
-
+        progressText.innerText =
+            "❌ Processing failed";
 
         status.innerText =
             "❌ ClipAI encountered an error.";
-
 
         status.className =
             "error";
@@ -1286,7 +1687,7 @@ async function analyse() {
                     ❌ Error
                 </h3>
 
-                <p>
+                <p class="reason">
                     ${
                         escapeHTML(
                             error.message ||
@@ -1301,20 +1702,21 @@ async function analyse() {
 
     }
 
+    finally {
 
-    button.disabled =
-        false;
+        button.disabled =
+            false;
+
+    }
 
 }
 
 
 /* =========================================================
-   FORMAT DURATION
+   FORMATTING
 ========================================================= */
 
-function formatDuration(
-    seconds
-) {
+function formatDuration(seconds) {
 
     seconds =
         Math.max(
@@ -1365,13 +1767,7 @@ function formatDuration(
 }
 
 
-/* =========================================================
-   FORMAT FILE SIZE
-========================================================= */
-
-function formatBytes(
-    bytes
-) {
+function formatBytes(bytes) {
 
     if (!bytes) {
         return "0 Bytes";
@@ -1402,8 +1798,7 @@ function formatBytes(
                 i
             )
         )
-        .toFixed(2)
-        +
+        .toFixed(2) +
         " " +
         units[i]
     );
@@ -1411,13 +1806,7 @@ function formatBytes(
 }
 
 
-/* =========================================================
-   FORMAT VIDEO TIME
-========================================================= */
-
-function formatTime(
-    seconds
-) {
+function formatTime(seconds) {
 
     seconds =
         Number(seconds) || 0;
@@ -1470,13 +1859,7 @@ function formatTime(
 }
 
 
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
-
-function escapeHTML(
-    text
-) {
+function escapeHTML(text) {
 
     return String(text)
 
@@ -1508,3 +1891,6 @@ function escapeHTML(
 }
 
 </script>
+
+</body>
+</html>
