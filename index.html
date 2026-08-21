@@ -2,9 +2,13 @@
 <html lang="en">
 
 <head>
+
 <meta charset="UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
 <title>ClipAI</title>
 
@@ -19,8 +23,12 @@ body {
     min-height: 100vh;
     background: #080808;
     color: white;
-    font-family: -apple-system, BlinkMacSystemFont,
-                 "Segoe UI", Arial, sans-serif;
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
 }
 
 .container {
@@ -72,6 +80,7 @@ button {
 
 button:disabled {
     opacity: 0.5;
+    cursor: not-allowed;
 }
 
 #status {
@@ -80,12 +89,88 @@ button:disabled {
     min-height: 24px;
 }
 
+.info-panel {
+    display: none;
+    margin-top: 25px;
+    padding: 20px;
+    background: #151515;
+    border-radius: 16px;
+    text-align: left;
+}
+
+.info-panel h3 {
+    margin-top: 0;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.info-item {
+    background: #1c1c1c;
+    padding: 14px;
+    border-radius: 12px;
+}
+
+.info-label {
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.info-value {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.warning {
+    margin-top: 15px;
+    padding: 13px;
+    background: #201d12;
+    border-radius: 10px;
+    color: #e5c86c;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.progress-container {
+    display: none;
+    margin-top: 20px;
+    text-align: left;
+}
+
+.progress-bar {
+    height: 10px;
+    background: #222;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    width: 0%;
+    height: 100%;
+    background: #7c5cff;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    margin-top: 8px;
+    color: #999;
+    font-size: 13px;
+}
+
 .clip {
     margin-top: 20px;
     padding: 20px;
     background: #151515;
     border-radius: 15px;
     text-align: left;
+}
+
+.viral {
+    border: 1px solid #292929;
 }
 
 .hook {
@@ -100,19 +185,24 @@ button:disabled {
     margin-bottom: 8px;
 }
 
-.segment {
-    padding: 10px 0;
-    border-bottom: 1px solid #292929;
+.score {
+    font-size: 28px;
+    font-weight: 800;
 }
 
-.segment-time {
-    color: #7c5cff;
+.score-label {
+    color: #999;
     font-size: 13px;
-    font-weight: bold;
 }
 
-.segment-text {
-    margin-top: 4px;
+.clip-time {
+    color: #7c5cff;
+    font-weight: bold;
+    margin-top: 12px;
+}
+
+.reason {
+    color: #bbb;
     line-height: 1.5;
 }
 
@@ -127,6 +217,18 @@ button:disabled {
 .transcript {
     white-space: pre-wrap;
     line-height: 1.6;
+}
+
+@media (max-width: 500px) {
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .logo {
+        font-size: 44px;
+    }
+
 }
 
 </style>
@@ -159,7 +261,7 @@ Upload a video
 
 
 <p>
-ClipAI will transcribe your video using AI.
+ClipAI will analyse your video using AI.
 </p>
 
 
@@ -168,6 +270,128 @@ ClipAI will transcribe your video using AI.
     id="video"
     accept="video/*"
 >
+
+
+<!-- ============================== -->
+<!-- VIDEO INFORMATION -->
+<!-- ============================== -->
+
+<div
+    id="videoInfo"
+    class="info-panel"
+>
+
+    <h3>
+        🎥 Video Information
+    </h3>
+
+    <div class="info-grid">
+
+        <div class="info-item">
+
+            <div class="info-label">
+                VIDEO LENGTH
+            </div>
+
+            <div
+                id="durationInfo"
+                class="info-value"
+            >
+                —
+            </div>
+
+        </div>
+
+
+        <div class="info-item">
+
+            <div class="info-label">
+                FILE SIZE
+            </div>
+
+            <div
+                id="sizeInfo"
+                class="info-value"
+            >
+                —
+            </div>
+
+        </div>
+
+
+        <div class="info-item">
+
+            <div class="info-label">
+                ESTIMATED CHUNKS
+            </div>
+
+            <div
+                id="chunksInfo"
+                class="info-value"
+            >
+                —
+            </div>
+
+        </div>
+
+
+        <div class="info-item">
+
+            <div class="info-label">
+                CHUNK SIZE
+            </div>
+
+            <div
+                id="chunkSizeInfo"
+                class="info-value"
+            >
+                5 minutes
+            </div>
+
+        </div>
+
+
+        <div class="info-item">
+
+            <div class="info-label">
+                ESTIMATED PROCESSING
+            </div>
+
+            <div
+                id="timeInfo"
+                class="info-value"
+            >
+                —
+            </div>
+
+        </div>
+
+
+        <div class="info-item">
+
+            <div class="info-label">
+                STORAGE
+            </div>
+
+            <div
+                id="storageInfo"
+                class="info-value"
+            >
+                Device only
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="warning"
+        class="warning"
+        style="display:none;"
+    ></div>
+
+</div>
 
 
 <br>
@@ -181,6 +405,34 @@ ClipAI will transcribe your video using AI.
 Find Viral Clips
 
 </button>
+
+
+<!-- ============================== -->
+<!-- PROGRESS -->
+<!-- ============================== -->
+
+<div
+    id="progressContainer"
+    class="progress-container"
+>
+
+    <div class="progress-bar">
+
+        <div
+            id="progressFill"
+            class="progress-fill"
+        ></div>
+
+    </div>
+
+    <div
+        id="progressText"
+        class="progress-text"
+    >
+        Preparing...
+    </div>
+
+</div>
 
 
 <div id="status"></div>
@@ -202,11 +454,248 @@ const API_URL =
 "https://clipai-api.7km7sfb9zz.workers.dev";
 
 
-async function analyse() {
+const CHUNK_MINUTES =
+5;
 
+
+const fileInput =
+document.getElementById("video");
+
+
+fileInput.addEventListener(
+    "change",
+    inspectVideo
+);
+
+
+// ==============================
+// INSPECT VIDEO
+// ==============================
+
+function inspectVideo() {
 
     const file =
-        document.getElementById("video").files[0];
+        fileInput.files[0];
+
+    const panel =
+        document.getElementById("videoInfo");
+
+    const warning =
+        document.getElementById("warning");
+
+    if (!file) {
+
+        panel.style.display =
+            "none";
+
+        return;
+
+    }
+
+
+    const video =
+        document.createElement("video");
+
+
+    video.preload =
+        "metadata";
+
+
+    video.onloadedmetadata =
+        function() {
+
+            const duration =
+                video.duration;
+
+
+            const chunks =
+                Math.ceil(
+                    duration /
+                    (CHUNK_MINUTES * 60)
+                );
+
+
+            document.getElementById(
+                "durationInfo"
+            ).innerText =
+                formatDuration(duration);
+
+
+            document.getElementById(
+                "sizeInfo"
+            ).innerText =
+                formatBytes(file.size);
+
+
+            document.getElementById(
+                "chunksInfo"
+            ).innerText =
+                chunks;
+
+
+            document.getElementById(
+                "chunkSizeInfo"
+            ).innerText =
+                CHUNK_MINUTES +
+                " minutes";
+
+
+            document.getElementById(
+                "timeInfo"
+            ).innerText =
+                estimateProcessingTime(
+                    duration,
+                    file.size
+                );
+
+
+            panel.style.display =
+                "block";
+
+
+            // ==============================
+            // LARGE VIDEO WARNING
+            // ==============================
+
+            if (duration >= 3600) {
+
+                warning.style.display =
+                    "block";
+
+                warning.innerHTML =
+                    "⚠️ <strong>Long video detected.</strong><br>" +
+                    "ClipAI will process this in " +
+                    chunks +
+                    " smaller chunks instead of " +
+                    "sending the entire video at once.";
+
+            }
+
+            else if (file.size > 500 * 1024 * 1024) {
+
+                warning.style.display =
+                    "block";
+
+                warning.innerHTML =
+                    "⚠️ <strong>Large file detected.</strong><br>" +
+                    "ClipAI will need to process the video " +
+                    "in smaller pieces.";
+
+            }
+
+            else {
+
+                warning.style.display =
+                    "none";
+
+            }
+
+
+            URL.revokeObjectURL(
+                video.src
+            );
+
+        };
+
+
+    video.onerror =
+        function() {
+
+            panel.style.display =
+                "none";
+
+            warning.style.display =
+                "block";
+
+            warning.innerText =
+                "⚠️ Could not read this video.";
+
+        };
+
+
+    video.src =
+        URL.createObjectURL(file);
+
+}
+
+
+// ==============================
+// ESTIMATE PROCESSING TIME
+// ==============================
+
+function estimateProcessingTime(
+    duration,
+    fileSize
+) {
+
+    const minutes =
+        duration / 60;
+
+
+    /*
+     * This is only a rough estimate.
+     *
+     * The real processing time will depend
+     * on upload speed, AI availability,
+     * video complexity and chunk processing.
+     */
+
+    let estimated =
+        minutes * 0.18;
+
+
+    if (fileSize >
+        1024 * 1024 * 1024) {
+
+        estimated += 2;
+
+    }
+
+
+    if (estimated < 1) {
+
+        estimated = 1;
+
+    }
+
+
+    const low =
+        Math.max(
+            1,
+            Math.round(
+                estimated * 0.7
+            )
+        );
+
+
+    const high =
+        Math.max(
+            low + 1,
+            Math.round(
+                estimated * 1.6
+            )
+        );
+
+
+    return (
+        "~" +
+        low +
+        "–" +
+        high +
+        " min"
+    );
+
+}
+
+
+// ==============================
+// ANALYSE
+// ==============================
+
+async function analyse() {
+
+    const file =
+        fileInput.files[0];
 
 
     const status =
@@ -218,7 +707,27 @@ async function analyse() {
 
 
     const button =
-        document.getElementById("analyseButton");
+        document.getElementById(
+            "analyseButton"
+        );
+
+
+    const progressContainer =
+        document.getElementById(
+            "progressContainer"
+        );
+
+
+    const progressFill =
+        document.getElementById(
+            "progressFill"
+        );
+
+
+    const progressText =
+        document.getElementById(
+            "progressText"
+        );
 
 
     if (!file) {
@@ -234,18 +743,35 @@ async function analyse() {
     }
 
 
-    button.disabled = true;
+    button.disabled =
+        true;
 
-    results.innerHTML = "";
+
+    results.innerHTML =
+        "";
+
+
+    progressContainer.style.display =
+        "block";
+
+
+    progressFill.style.width =
+        "5%";
+
+
+    progressText.innerText =
+        "Preparing your video...";
+
 
     status.innerText =
         "Preparing your video...";
 
-    status.className = "";
+
+    status.className =
+        "";
 
 
     try {
-
 
         const formData =
             new FormData();
@@ -255,6 +781,14 @@ async function analyse() {
             "audio",
             file
         );
+
+
+        progressFill.style.width =
+            "10%";
+
+
+        progressText.innerText =
+            "📤 Uploading video...";
 
 
         status.innerText =
@@ -271,6 +805,14 @@ async function analyse() {
             );
 
 
+        progressFill.style.width =
+            "75%";
+
+
+        progressText.innerText =
+            "🧠 AI is analysing your video...";
+
+
         const responseText =
             await response.text();
 
@@ -281,15 +823,17 @@ async function analyse() {
         try {
 
             data =
-                JSON.parse(responseText);
+                JSON.parse(
+                    responseText
+                );
 
         }
 
         catch {
 
             throw new Error(
-                "Worker returned an invalid response: "
-                + responseText
+                "Worker returned an invalid response: " +
+                responseText
             );
 
         }
@@ -305,64 +849,130 @@ async function analyse() {
         }
 
 
+        progressFill.style.width =
+            "100%";
+
+
+        progressText.innerText =
+            "✅ Analysis complete";
+
+
         status.innerText =
             "✅ AI analysis complete!";
+
 
         status.className =
             "success";
 
 
-        let segmentsHTML = "";
+        let viralHTML =
+            "";
 
-
-        /*
-         * Display timestamped transcript
-         */
 
         if (
-            data.segments &&
-            data.segments.length > 0
+            data.viralClips &&
+            data.viralClips.length > 0
         ) {
 
-            segmentsHTML =
-                data.segments.map(
-                    segment => {
+            viralHTML = `
 
-                        const start =
-                            formatTime(
-                                segment.start
-                            );
+                <div class="clip">
 
-                        const end =
-                            formatTime(
-                                segment.end
-                            );
+                    <h2>
+                        🔥 Viral Clips Found
+                    </h2>
 
-                        return `
+                    ${
+                        data.viralClips
+                        .map(
+                            (clip, index) => {
 
-                            <div class="segment">
+                                return `
 
-                                <div class="segment-time">
-                                    ${start} → ${end}
-                                </div>
+                                    <div
+                                        class="clip viral"
+                                    >
 
-                                <div class="segment-text">
-                                    ${escapeHTML(
-                                        segment.text || ""
-                                    )}
-                                </div>
+                                        <h3>
+                                            🔥 Viral Clip #${
+                                                index + 1
+                                            }
+                                        </h3>
 
-                            </div>
+                                        <div class="score">
+                                            ${
+                                                escapeHTML(
+                                                    clip.score
+                                                )
+                                            }/100
+                                        </div>
 
-                        `;
+                                        <div class="score-label">
+                                            Viral potential
+                                        </div>
 
+                                        <div class="clip-time">
+                                            ⏱️
+                                            ${
+                                                formatTime(
+                                                    clip.start
+                                                )
+                                            }
+                                            →
+                                            ${
+                                                formatTime(
+                                                    clip.end
+                                                )
+                                            }
+                                        </div>
+
+                                        ${
+                                            clip.hook
+                                            ?
+                                            `
+                                            <p>
+                                                🪝 <strong>
+                                                ${
+                                                    escapeHTML(
+                                                        clip.hook
+                                                    )
+                                                }
+                                                </strong>
+                                            </p>
+                                            `
+                                            :
+                                            ""
+                                        }
+
+                                        <p class="reason">
+                                            ${
+                                                escapeHTML(
+                                                    clip.reason ||
+                                                    "Strong potential moment."
+                                                )
+                                            }
+                                        </p>
+
+                                    </div>
+
+                                `;
+
+                            }
+                        )
+                        .join("")
                     }
-                ).join("");
+
+                </div>
+
+            `;
 
         }
 
 
         results.innerHTML = `
+
+            ${viralHTML}
+
 
             ${
                 data.hook
@@ -375,9 +985,11 @@ async function analyse() {
                     </div>
 
                     <div class="hook">
-                        ${escapeHTML(
-                            data.hook
-                        )}
+                        ${
+                            escapeHTML(
+                                data.hook
+                            )
+                        }
                     </div>
 
                 </div>
@@ -393,18 +1005,14 @@ async function analyse() {
                     🎙️ AI Transcript
                 </h3>
 
-                ${
-                    segmentsHTML
-                    ||
-                    `
-                    <p class="transcript">
-                        ${escapeHTML(
+                <p class="transcript">
+                    ${
+                        escapeHTML(
                             data.transcript ||
                             "No speech was detected."
-                        )}
-                    </p>
-                    `
-                }
+                        )
+                    }
+                </p>
 
             </div>
 
@@ -415,15 +1023,23 @@ async function analyse() {
 
     catch (error) {
 
-
         console.error(
             "ClipAI error:",
             error
         );
 
 
+        progressFill.style.width =
+            "0%";
+
+
+        progressText.innerText =
+            "❌ Processing failed";
+
+
         status.innerText =
             "Could not connect to ClipAI.";
+
 
         status.className =
             "error";
@@ -438,14 +1054,11 @@ async function analyse() {
                 </h3>
 
                 <p>
-                    ${escapeHTML(
-                        error.message
-                    )}
-                </p>
-
-                <p>
-                    Check the Worker deployment
-                    and Workers AI binding.
+                    ${
+                        escapeHTML(
+                            error.message
+                        )
+                    }
                 </p>
 
             </div>
@@ -455,12 +1068,121 @@ async function analyse() {
     }
 
 
-    button.disabled = false;
+    button.disabled =
+        false;
 
 }
 
 
-function formatTime(seconds) {
+// ==============================
+// FORMAT DURATION
+// ==============================
+
+function formatDuration(
+    seconds
+) {
+
+    seconds =
+        Math.floor(
+            seconds
+        );
+
+
+    const hours =
+        Math.floor(
+            seconds / 3600
+        );
+
+
+    const minutes =
+        Math.floor(
+            (seconds % 3600) / 60
+        );
+
+
+    const remaining =
+        seconds % 60;
+
+
+    if (hours > 0) {
+
+        return (
+            hours +
+            "h " +
+            minutes +
+            "m"
+        );
+
+    }
+
+
+    return (
+        minutes +
+        "m " +
+        remaining +
+        "s"
+    );
+
+}
+
+
+// ==============================
+// FORMAT FILE SIZE
+// ==============================
+
+function formatBytes(
+    bytes
+) {
+
+    if (bytes === 0) {
+
+        return "0 Bytes";
+
+    }
+
+
+    const units =
+        [
+            "Bytes",
+            "KB",
+            "MB",
+            "GB",
+            "TB"
+        ];
+
+
+    const i =
+        Math.floor(
+            Math.log(bytes) /
+            Math.log(1024)
+        );
+
+
+    return (
+        parseFloat(
+            (
+                bytes /
+                Math.pow(
+                    1024,
+                    i
+                )
+            )
+            .toFixed(2)
+        ) +
+        " " +
+        units[i]
+    );
+
+}
+
+
+// ==============================
+// FORMAT TIME
+// ==============================
+
+function formatTime(
+    seconds
+) {
 
     seconds =
         Number(seconds) || 0;
@@ -479,17 +1201,23 @@ function formatTime(seconds) {
 
 
     return (
-        String(minutes).padStart(2, "0")
-        +
-        ":"
-        +
-        String(remaining).padStart(2, "0")
+        String(minutes)
+            .padStart(2, "0") +
+        ":" +
+        String(remaining)
+            .padStart(2, "0")
     );
 
 }
 
 
-function escapeHTML(text) {
+// ==============================
+// ESCAPE HTML
+// ==============================
+
+function escapeHTML(
+    text
+) {
 
     return String(text)
 
@@ -519,7 +1247,6 @@ function escapeHTML(text) {
         );
 
 }
-
 
 </script>
 
