@@ -1,829 +1,1510 @@
-export default {
-  async fetch(request, env) {
+<script type="module">
 
-    const cors = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
-    };
+import {
+    FFmpeg
+} from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/+esm";
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        headers: cors
-      });
+import {
+    fetchFile,
+    toBlobURL
+} from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/+esm";
+
+
+const API_URL =
+    "https://clipai-api.7km7sfb9zz.workers.dev";
+
+const CHUNK_MINUTES = 5;
+const CHUNK_SECONDS = CHUNK_MINUTES * 60;
+
+let fileInput;
+let button;
+let status;
+let results;
+let progressContainer;
+let progressFill;
+let progressText;
+
+let ffmpeg = null;
+let ffmpegLoaded = false;
+let videoDuration = 0;
+
+
+/* =========================================================
+   START AFTER HTML HAS LOADED
+========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    fileInput =
+        document.getElementById("video");
+
+    button =
+        document.getElementById("analyseButton");
+
+    status =
+        document.getElementById("status");
+
+    results =
+        document.getElementById("results");
+
+    progressContainer =
+        document.getElementById("progressContainer");
+
+    progressFill =
+        document.getElementById("progressFill");
+
+    progressText =
+        document.getElementById("progressText");
+
+
+    /*
+     * Prevent a missing HTML element from
+     * causing the entire website to crash.
+     */
+
+    if (!fileInput) {
+        console.error("ClipAI: #video not found.");
+        return;
     }
 
-    if (request.method !== "POST") {
-      return json(
-        { error: "Use POST" },
-        405,
-        cors
-      );
+
+    if (!button) {
+        console.error("ClipAI: #analyseButton not found.");
+        return;
     }
+
+
+    if (!status) {
+        console.error("ClipAI: #status not found.");
+        return;
+    }
+
+
+    if (!results) {
+        console.error("ClipAI: #results not found.");
+        return;
+    }
+
+
+    fileInput.addEventListener(
+        "change",
+        inspectVideo
+    );
+
+
+    /*
+     * Make BOTH possible button methods work.
+     */
+
+    window.analyse = analyse;
+
+
+    button.addEventListener(
+        "click",
+        analyse
+    );
+
+
+    console.log(
+        "ClipAI frontend loaded successfully."
+    );
+
+});
+
+
+/* =========================================================
+   VIDEO INSPECTION
+========================================================= */
+
+function inspectVideo() {
+
+    const file =
+        fileInput.files[0];
+
+    const panel =
+        document.getElementById("videoInfo");
+
+    const warning =
+        document.getElementById("warning");
+
+
+    if (!file) {
+
+        if (panel) {
+            panel.style.display = "none";
+        }
+
+        return;
+    }
+
+
+    const video =
+        document.createElement("video");
+
+
+    video.preload =
+        "metadata";
+
+
+    const objectURL =
+        URL.createObjectURL(file);
+
+
+    video.onloadedmetadata =
+        function () {
+
+            videoDuration =
+                video.duration;
+
+
+            const chunks =
+                Math.ceil(
+                    videoDuration /
+                    CHUNK_SECONDS
+                );
+
+
+            const durationInfo =
+                document.getElementById(
+                    "durationInfo"
+                );
+
+            const sizeInfo =
+                document.getElementById(
+                    "sizeInfo"
+                );
+
+            const chunksInfo =
+                document.getElementById(
+                    "chunksInfo"
+                );
+
+            const chunkSizeInfo =
+                document.getElementById(
+                    "chunkSizeInfo"
+                );
+
+            const timeInfo =
+                document.getElementById(
+                    "timeInfo"
+                );
+
+
+            if (durationInfo) {
+
+                durationInfo.innerText =
+                    formatDuration(
+                        videoDuration
+                    );
+
+            }
+
+
+            if (sizeInfo) {
+
+                sizeInfo.innerText =
+                    formatBytes(
+                        file.size
+                    );
+
+            }
+
+
+            if (chunksInfo) {
+
+                chunksInfo.innerText =
+                    chunks;
+
+            }
+
+
+            if (chunkSizeInfo) {
+
+                chunkSizeInfo.innerText =
+                    CHUNK_MINUTES +
+                    " minutes";
+
+            }
+
+
+            if (timeInfo) {
+
+                timeInfo.innerText =
+                    estimateProcessingTime(
+                        videoDuration,
+                        file.size
+                    );
+
+            }
+
+
+            if (panel) {
+
+                panel.style.display =
+                    "block";
+
+            }
+
+
+            if (
+                warning &&
+                videoDuration >= 3600
+            ) {
+
+                warning.style.display =
+                    "block";
+
+                warning.innerHTML =
+                    "⚠️ <strong>Long video detected.</strong><br>" +
+                    "ClipAI will process this in " +
+                    chunks +
+                    " audio chunks.";
+
+            }
+
+            else if (
+                warning &&
+                file.size >
+                500 * 1024 * 1024
+            ) {
+
+                warning.style.display =
+                    "block";
+
+                warning.innerHTML =
+                    "⚠️ <strong>Large file detected.</strong><br>" +
+                    "ClipAI will process the audio in smaller pieces.";
+
+            }
+
+            else if (warning) {
+
+                warning.style.display =
+                    "none";
+
+            }
+
+
+            URL.revokeObjectURL(
+                objectURL
+            );
+
+        };
+
+
+    video.onerror =
+        function () {
+
+            if (panel) {
+                panel.style.display = "none";
+            }
+
+            if (warning) {
+
+                warning.style.display =
+                    "block";
+
+                warning.innerText =
+                    "⚠️ Could not read this video.";
+
+            }
+
+            URL.revokeObjectURL(
+                objectURL
+            );
+
+        };
+
+
+    video.src =
+        objectURL;
+
+}
+
+
+/* =========================================================
+   PROCESSING ESTIMATE
+========================================================= */
+
+function estimateProcessingTime(
+    duration,
+    fileSize
+) {
+
+    const minutes =
+        duration / 60;
+
+
+    let estimated =
+        minutes * 0.35;
+
+
+    if (
+        fileSize >
+        1024 * 1024 * 1024
+    ) {
+
+        estimated += 2;
+
+    }
+
+
+    estimated =
+        Math.max(
+            1,
+            estimated
+        );
+
+
+    const low =
+        Math.max(
+            1,
+            Math.round(
+                estimated * 0.7
+            )
+        );
+
+
+    const high =
+        Math.max(
+            low + 1,
+            Math.round(
+                estimated * 1.6
+            )
+        );
+
+
+    return (
+        "~" +
+        low +
+        "–" +
+        high +
+        " min"
+    );
+
+}
+
+
+/* =========================================================
+   LOAD FFMPEG
+========================================================= */
+
+async function loadFFmpeg() {
+
+    if (ffmpegLoaded) {
+        return;
+    }
+
+
+    status.innerText =
+        "⚙️ Loading video processor...";
+
+
+    ffmpeg =
+        new FFmpeg();
+
+
+    const baseURL =
+        "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+
+
+    await ffmpeg.load({
+
+        coreURL:
+            await toBlobURL(
+                baseURL +
+                "/ffmpeg-core.js",
+                "text/javascript"
+            ),
+
+        wasmURL:
+            await toBlobURL(
+                baseURL +
+                "/ffmpeg-core.wasm",
+                "application/wasm"
+            )
+
+    });
+
+
+    ffmpegLoaded =
+        true;
+
+}
+
+
+/* =========================================================
+   MAIN ANALYSIS
+========================================================= */
+
+async function analyse() {
+
+    const file =
+        fileInput.files[0];
+
+
+    if (!file) {
+
+        status.innerText =
+            "Please select a video first.";
+
+        status.className =
+            "error";
+
+        return;
+
+    }
+
+
+    if (
+        !videoDuration ||
+        !Number.isFinite(videoDuration)
+    ) {
+
+        status.innerText =
+            "Please wait for the video information to load.";
+
+        status.className =
+            "error";
+
+        return;
+
+    }
+
+
+    button.disabled =
+        true;
+
+
+    results.innerHTML =
+        "";
+
+
+    if (progressContainer) {
+
+        progressContainer.style.display =
+            "block";
+
+    }
+
+
+    if (progressFill) {
+
+        progressFill.style.width =
+            "0%";
+
+    }
+
+
+    if (progressText) {
+
+        progressText.innerText =
+            "Preparing your video...";
+
+    }
+
+
+    status.innerText =
+        "Preparing your video...";
+
+    status.className =
+        "";
+
 
     try {
 
-      // ==========================================
-      // RECEIVE AUDIO CHUNK
-      // ==========================================
+        /* =================================================
+           LOAD FFMPEG
+        ================================================= */
 
-      const formData =
-        await request.formData();
-
-      const audio =
-        formData.get("audio");
-
-      if (!audio) {
-        return json(
-          {
-            error:
-              "No audio/video file received."
-          },
-          400,
-          cors
-        );
-      }
-
-      const audioBuffer =
-        await audio.arrayBuffer();
-
-      /*
-       * Protect the Worker from accidentally
-       * receiving an enormous audio chunk.
-       *
-       * The frontend should normally send
-       * approximately 60-second chunks.
-       */
-
-      const MAX_AUDIO_BYTES =
-        25 * 1024 * 1024;
-
-      if (
-        audioBuffer.byteLength >
-        MAX_AUDIO_BYTES
-      ) {
-
-        return json(
-          {
-            error:
-              "Audio chunk is too large. " +
-              "Please use smaller chunks."
-          },
-          413,
-          cors
-        );
-
-      }
+        await loadFFmpeg();
 
 
-      const audioBytes =
-        [...new Uint8Array(audioBuffer)];
+        status.innerText =
+            "🎬 Preparing video...";
 
 
-      // ==========================================
-      // WHISPER TRANSCRIPTION
-      // ==========================================
+        progressText.innerText =
+            "Reading video...";
 
-      const transcription =
-        await env.AI.run(
-          "@cf/openai/whisper-large-v3-turbo",
-          {
-            audio: audioBytes
-          }
+
+        /*
+         * Store video inside browser FFmpeg memory.
+         */
+
+        await ffmpeg.writeFile(
+            "input.mp4",
+            await fetchFile(file)
         );
 
 
-      const transcript =
-        transcription.text || "";
-
-
-      const segments =
-        transcription.segments || [];
-
-
-      const words =
-        transcription.words || [];
-
-
-      // ==========================================
-      // DEFAULT RESULTS
-      // ==========================================
-
-      let hook = "";
-
-      let hookError = "";
-
-      let viralClips = [];
-
-      let viralError = "";
-
-
-      // ==========================================
-      // NOTHING SPOKEN
-      // ==========================================
-
-      if (!transcript.trim()) {
-
-        return json(
-          {
-            success: true,
-
-            ai: true,
-
-            transcript: "",
-
-            segments: [],
-
-            words: [],
-
-            hook: "",
-
-            hookError: "",
-
-            viralClips: [],
-
-            viralError:
-              "No speech detected."
-          },
-          200,
-          cors
-        );
-
-      }
-
-
-      // ==========================================
-      // BUILD TIMESTAMPED TRANSCRIPT
-      // ==========================================
-
-      const timestampedTranscript =
-        segments
-          .map(segment => {
-
-            const start =
-              Number(segment.start) || 0;
-
-            const end =
-              Number(segment.end) || start;
-
-            const text =
-              segment.text || "";
-
-            return (
-              `[${formatTime(start)} - ` +
-              `${formatTime(end)}] ` +
-              `${text}`
+        const totalChunks =
+            Math.ceil(
+                videoDuration /
+                CHUNK_SECONDS
             );
 
-          })
-          .join("\n");
+
+        const transcripts = [];
 
 
-      // ==========================================
-      // VIRAL MOMENT ANALYSIS
-      // ==========================================
+        const processingStart =
+            Date.now();
 
-      try {
 
-        const viralAI =
-          await env.AI.run(
-            "@cf/meta/llama-3.1-8b-instruct-fast",
-            {
+        /* =================================================
+           TRANSCRIBE EVERY CHUNK
+        ================================================= */
 
-              messages: [
+        for (
+            let i = 0;
+            i < totalChunks;
+            i++
+        ) {
 
-                {
-                  role: "system",
+            const chunkStart =
+                i *
+                CHUNK_SECONDS;
 
-                  content:
-                    `You are ClipAI, an expert viral short-form video editor.
 
-Find the BEST moments in the supplied video transcript for TikTok, YouTube Shorts or Instagram Reels.
+            const chunkDuration =
+                Math.min(
+                    CHUNK_SECONDS,
+                    videoDuration -
+                    chunkStart
+                );
 
-Look for:
 
-- surprising statements
-- funny moments
-- emotional moments
-- arguments
-- controversial statements
-- unusual facts
-- stories
-- strong opinions
-- unexpected twists
-- impressive information
-- satisfying explanations
-- curiosity
-- memorable statements
-- natural beginnings and payoffs
+            const chunkName =
+                "chunk_" +
+                i +
+                ".wav";
 
-ONLY use information explicitly contained in the transcript.
 
-NEVER invent:
+            const chunkNumber =
+                i + 1;
 
-- people
-- relationships
-- family
-- secrets
-- locations
-- events
-- motivations
-- emotions
-- backstory
-- outcomes
 
-Do not create fake drama.
+            progressText.innerText =
+                "🎙️ Extracting chunk " +
+                chunkNumber +
+                " / " +
+                totalChunks +
+                "...";
 
-Choose up to 3 strong moments.
 
-Each clip should normally be between 10 and 60 seconds.
+            await ffmpeg.exec([
 
-Do not make every clip the same length.
+                "-ss",
+                String(chunkStart),
 
-Prefer moments with a clear beginning, interesting development and payoff.
+                "-i",
+                "input.mp4",
 
-The timestamps MUST come from the supplied transcript.
+                "-t",
+                String(chunkDuration),
 
-Give each clip a score from 0 to 100.
+                "-vn",
 
-90-100 = extremely strong
-75-89 = strong
-60-74 = decent
-40-59 = weak
-0-39 = poor
+                "-ac",
+                "1",
 
-Do not give high scores simply because a moment exists.
+                "-ar",
+                "16000",
 
-Return ONLY valid JSON.
+                "-c:a",
+                "pcm_s16le",
 
-Format:
+                chunkName
 
-[
-  {
-    "score": 92,
-    "start": 12.5,
-    "end": 42.8,
-    "reason": "Why this moment could perform well.",
-    "hook": "A truthful hook based only on the transcript."
-  }
-]
+            ]);
 
-If there are no genuinely interesting moments:
 
-[]
+            const audioData =
+                await ffmpeg.readFile(
+                    chunkName
+                );
 
-No markdown.
-No code fences.
-No explanation outside the JSON.`
-                },
 
-                {
-                  role: "user",
+            const audioBlob =
+                new Blob(
+                    [
+                        audioData.buffer
+                    ],
+                    {
+                        type:
+                            "audio/wav"
+                    }
+                );
 
-                  content:
-                    "TIMESTAMPED TRANSCRIPT:\n\n" +
-                    timestampedTranscript
-                }
 
-              ],
+            /* =================================================
+               SEND AUDIO TO WORKER
+            ================================================= */
 
-              max_tokens: 800,
+            progressText.innerText =
+                "🧠 Transcribing chunk " +
+                chunkNumber +
+                " / " +
+                totalChunks +
+                "...";
 
-              temperature: 0.15
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                "audio",
+                audioBlob,
+                chunkName
+            );
+
+
+            formData.append(
+                "chunkIndex",
+                String(i)
+            );
+
+
+            formData.append(
+                "chunkStart",
+                String(chunkStart)
+            );
+
+
+            formData.append(
+                "chunkDuration",
+                String(chunkDuration)
+            );
+
+
+            const response =
+                await fetch(
+                    API_URL,
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            const responseText =
+                await response.text();
+
+
+            let data;
+
+
+            try {
+
+                data =
+                    JSON.parse(
+                        responseText
+                    );
 
             }
-          );
+
+            catch {
+
+                throw new Error(
+                    "Worker returned invalid JSON: " +
+                    responseText
+                );
+
+            }
 
 
-        let raw =
-          viralAI.response || "";
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Chunk " +
+                    chunkNumber +
+                    " failed."
+                );
+
+            }
 
 
-        raw =
-          raw
-            .trim()
-            .replace(
-              /^```json/i,
-              ""
-            )
-            .replace(
-              /^```/i,
-              ""
-            )
-            .replace(
-              /```$/i,
-              ""
-            )
-            .trim();
+            transcripts.push({
+
+                index:
+                    i,
+
+                start:
+                    chunkStart,
+
+                end:
+                    chunkStart +
+                    chunkDuration,
+
+                text:
+                    data.transcript ||
+                    "",
+
+                segments:
+                    data.segments ||
+                    []
+
+            });
+
+
+            const completed =
+                chunkNumber;
+
+
+            const percent =
+                Math.round(
+                    (
+                        completed /
+                        totalChunks
+                    ) *
+                    100
+                );
+
+
+            progressFill.style.width =
+                percent + "%";
+
+
+            const elapsed =
+                (
+                    Date.now() -
+                    processingStart
+                ) / 1000;
+
+
+            const average =
+                elapsed /
+                completed;
+
+
+            const remaining =
+                average *
+                (
+                    totalChunks -
+                    completed
+                );
+
+
+            progressText.innerText =
+                "✅ Chunk " +
+                completed +
+                " / " +
+                totalChunks +
+                " • " +
+                percent +
+                "% • ~" +
+                formatDuration(
+                    remaining
+                ) +
+                " remaining";
+
+
+            try {
+
+                await ffmpeg.deleteFile(
+                    chunkName
+                );
+
+            }
+
+            catch {}
+
+        }
+
+
+        /* =================================================
+           BUILD COMPLETE TIMESTAMPED TRANSCRIPT
+        ================================================= */
+
+        progressText.innerText =
+            "🧠 Combining transcripts...";
+
+
+        const combinedTranscript =
+            transcripts
+                .sort(
+                    (a, b) =>
+                        a.index -
+                        b.index
+                )
+                .map(
+                    chunk => {
+
+                        /*
+                         * Use actual Whisper segments
+                         * where available so the second
+                         * AI gets useful timestamps.
+                         */
+
+                        if (
+                            chunk.segments &&
+                            chunk.segments.length
+                        ) {
+
+                            return chunk.segments
+                                .map(segment => {
+
+                                    const relativeStart =
+                                        Number(
+                                            segment.start
+                                        ) || 0;
+
+                                    const absoluteStart =
+                                        chunk.start +
+                                        relativeStart;
+
+                                    return (
+                                        "[" +
+                                        formatTime(
+                                            absoluteStart
+                                        ) +
+                                        "] " +
+                                        (
+                                            segment.text ||
+                                            ""
+                                        )
+                                    );
+
+                                })
+                                .join("\n");
+
+                        }
+
+
+                        return (
+                            "[" +
+                            formatTime(
+                                chunk.start
+                            ) +
+                            "] " +
+                            chunk.text
+                        );
+
+                    }
+                )
+                .join("\n")
+                .trim();
+
+
+        /* =================================================
+           SECOND AI STAGE
+           DEEP VIRAL ANALYSIS
+        ================================================= */
+
+        progressFill.style.width =
+            "90%";
+
+
+        progressText.innerText =
+            "🔥 Finding viral moments...";
+
+
+        const analysisResponse =
+            await fetch(
+                API_URL,
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            action:
+                                "analyze",
+
+                            transcript:
+                                combinedTranscript,
+
+                            duration:
+                                videoDuration
+
+                        })
+
+                }
+            );
+
+
+        const analysisText =
+            await analysisResponse.text();
+
+
+        let analysisData = {};
 
 
         try {
 
-          viralClips =
-            JSON.parse(raw);
-
-
-          if (
-            !Array.isArray(
-              viralClips
-            )
-          ) {
-
-            viralClips = [];
-
-            viralError =
-              "AI returned invalid clip data.";
-
-          }
-
-        } catch {
-
-          viralClips = [];
-
-          viralError =
-            "AI returned invalid JSON.";
-
-        }
-
-      } catch (error) {
-
-        viralError =
-          error.message ||
-          "Viral analysis failed.";
-
-      }
-
-
-      // ==========================================
-      // SAFELY VALIDATE VIRAL CLIPS
-      // ==========================================
-
-      const safeClips =
-        viralClips
-
-          .filter(clip => {
-
-            if (!clip) {
-              return false;
-            }
-
-
-            const start =
-              Number(clip.start);
-
-
-            const end =
-              Number(clip.end);
-
-
-            if (
-              !Number.isFinite(start) ||
-              !Number.isFinite(end)
-            ) {
-
-              return false;
-
-            }
-
-
-            if (
-              end <= start
-            ) {
-
-              return false;
-
-            }
-
-
-            return true;
-
-          })
-
-
-          .map(clip => {
-
-            let start =
-              Math.max(
-                0,
-                Number(clip.start)
-              );
-
-
-            let end =
-              Math.max(
-                start,
-                Number(clip.end)
-              );
-
-
-            /*
-             * Never allow a clip longer
-             * than 60 seconds.
-             */
-
-            if (
-              end - start >
-              60
-            ) {
-
-              end =
-                start + 60;
-
-            }
-
-
-            let score =
-              Number(clip.score);
-
-
-            if (
-              !Number.isFinite(score)
-            ) {
-
-              score = 0;
-
-            }
-
-
-            score =
-              Math.round(
-                Math.min(
-                  100,
-                  Math.max(
-                    0,
-                    score
-                  )
-                )
-              );
-
-
-            return {
-
-              score:
-
-                score,
-
-              start:
-
-                start,
-
-              end:
-
-                end,
-
-              duration:
-
-                Math.round(
-                  (
-                    end -
-                    start
-                  ) * 10
-                ) / 10,
-
-              reason:
-
-                String(
-                  clip.reason ||
-                  "Potentially interesting moment."
-                ),
-
-              hook:
-
-                String(
-                  clip.hook ||
-                  ""
-                )
-
-            };
-
-          })
-
-
-          .sort(
-            (a, b) =>
-              b.score -
-              a.score
-          )
-
-
-          .slice(
-            0,
-            3
-          );
-
-
-      // ==========================================
-      // GENERATE HOOK FOR BEST MOMENT
-      // ==========================================
-
-      if (
-        safeClips.length > 0
-      ) {
-
-        const bestClip =
-          safeClips[0];
-
-
-        const bestText =
-          segments
-
-            .filter(segment => {
-
-              const start =
-                Number(
-                  segment.start
-                ) || 0;
-
-
-              const end =
-                Number(
-                  segment.end
-                ) || start;
-
-
-              return (
-                end >=
-                  bestClip.start &&
-                start <=
-                  bestClip.end
-              );
-
-            })
-
-
-            .map(
-              segment =>
-                segment.text || ""
-            )
-
-
-            .join(" ");
-
-
-        if (
-          bestText.trim()
-        ) {
-
-          try {
-
-            const hookAI =
-              await env.AI.run(
-                "@cf/meta/llama-3.1-8b-instruct-fast",
-                {
-
-                  messages: [
-
-                    {
-                      role: "system",
-
-                      content:
-                        `You create short-form video hooks.
-
-Create ONE short spoken hook for the selected video moment.
-
-The hook MUST be truthful.
-
-Use ONLY information explicitly contained in the supplied text.
-
-Do not invent:
-
-- secrets
-- people
-- relationships
-- drama
-- backstory
-- outcomes
-- motivations
-
-Create curiosity without lying.
-
-Keep it short enough to speak in approximately 2-6 seconds.
-
-Return ONLY the hook.
-
-No quotation marks.
-No explanation.`
-                    },
-
-                    {
-                      role: "user",
-
-                      content:
-                        "SELECTED MOMENT:\n\n" +
-                        bestText
-                    }
-
-                  ],
-
-                  max_tokens: 60,
-
-                  temperature: 0.15
-
-                }
-              );
-
-
-            hook =
-              (
-                hookAI.response ||
-                bestClip.hook ||
-                ""
-              )
-                .trim()
-                .replace(
-                  /^["']|["']$/g,
-                  ""
+            analysisData =
+                JSON.parse(
+                    analysisText
                 );
 
-
-          } catch (error) {
-
-            hookError =
-              error.message ||
-              "Hook generation failed.";
-
-
-            hook =
-              bestClip.hook ||
-              "";
-
-          }
-
         }
 
-      }
+        catch {
 
+            throw new Error(
+                "Deep analysis returned invalid JSON: " +
+                analysisText
+            );
 
-      // ==========================================
-      // FALLBACK HOOK
-      // ==========================================
-
-      if (
-        !hook.trim() &&
-        transcript.trim()
-      ) {
-
-        const wordCount =
-          transcript
-            .trim()
-            .split(/\s+/)
-            .length;
+        }
 
 
         if (
-          wordCount <= 12
+            !analysisResponse.ok ||
+            analysisData.success === false
         ) {
 
-          hook =
-            transcript.trim();
+            throw new Error(
+                analysisData.error ||
+                "Deep AI analysis failed."
+            );
 
         }
 
-      }
+
+        progressFill.style.width =
+            "100%";
 
 
-      // ==========================================
-      // RETURN EVERYTHING
-      // ==========================================
-
-      return json(
-        {
-
-          success:
-            true,
-
-          ai:
-            true,
-
-          transcript:
-            transcript,
-
-          segments:
-            segments,
-
-          words:
-            words,
-
-          hook:
-            hook,
-
-          hookError:
-            hookError,
-
-          viralClips:
-            safeClips,
-
-          viralError:
-            viralError,
-
-          clipCount:
-            safeClips.length,
-
-          bestScore:
-            safeClips.length > 0
-              ? safeClips[0].score
-              : 0,
-
-          bestClip:
-            safeClips.length > 0
-              ? safeClips[0]
-              : null
-
-        },
-
-        200,
-
-        cors
-
-      );
+        progressText.innerText =
+            "✅ Analysis complete";
 
 
-    } catch (error) {
+        status.innerText =
+            "✅ AI analysis complete!";
 
-      return json(
-        {
 
-          success:
-            false,
+        status.className =
+            "success";
 
-          error:
-            error.message ||
-            "AI processing failed."
 
-        },
+        /* =================================================
+           VIRAL CLIPS
+        ================================================= */
 
-        500,
+        let viralHTML =
+            "";
 
-        cors
 
-      );
+        if (
+            Array.isArray(
+                analysisData.viralClips
+            ) &&
+            analysisData.viralClips.length
+        ) {
+
+            viralHTML = `
+
+                <div class="clip">
+
+                    <h2>
+                        🔥 Viral Clips Found
+                    </h2>
+
+                    ${
+
+                        analysisData
+                            .viralClips
+                            .map(
+                                (
+                                    clip,
+                                    index
+                                ) => `
+
+                                <div class="clip viral">
+
+                                    <h3>
+                                        🔥 Viral Clip #${
+                                            index + 1
+                                        }
+                                    </h3>
+
+                                    <div class="score">
+                                        ${
+                                            escapeHTML(
+                                                clip.score
+                                            )
+                                        }/100
+                                    </div>
+
+                                    <div class="score-label">
+                                        Viral potential
+                                    </div>
+
+                                    <div class="clip-time">
+                                        ⏱️
+                                        ${
+                                            formatTime(
+                                                clip.start
+                                            )
+                                        }
+                                        →
+                                        ${
+                                            formatTime(
+                                                clip.end
+                                            )
+                                        }
+                                    </div>
+
+                                    ${
+                                        clip.hook
+                                        ?
+                                        `
+                                        <p>
+                                            🪝
+                                            <strong>
+                                                ${
+                                                    escapeHTML(
+                                                        clip.hook
+                                                    )
+                                                }
+                                            </strong>
+                                        </p>
+                                        `
+                                        :
+                                        ""
+                                    }
+
+                                    <p class="reason">
+                                        ${
+                                            escapeHTML(
+                                                clip.reason ||
+                                                "Strong potential moment."
+                                            )
+                                        }
+                                    </p>
+
+                                    ${
+                                        Array.isArray(
+                                            clip.strengths
+                                        ) &&
+                                        clip.strengths.length
+                                        ?
+                                        `
+                                        <p>
+                                            <strong>
+                                                Why it works:
+                                            </strong>
+                                            ${
+                                                escapeHTML(
+                                                    clip.strengths.join(
+                                                        " • "
+                                                    )
+                                                )
+                                            }
+                                        </p>
+                                        `
+                                        :
+                                        ""
+                                    }
+
+                                    ${
+                                        Array.isArray(
+                                            clip.weaknesses
+                                        ) &&
+                                        clip.weaknesses.length
+                                        ?
+                                        `
+                                        <p>
+                                            <strong>
+                                                Weakness:
+                                            </strong>
+                                            ${
+                                                escapeHTML(
+                                                    clip.weaknesses.join(
+                                                        " • "
+                                                    )
+                                                )
+                                            }
+                                        </p>
+                                        `
+                                        :
+                                        ""
+                                    }
+
+                                </div>
+
+                            `
+                            )
+                            .join("")
+                    }
+
+                </div>
+
+            `;
+
+        }
+
+        else {
+
+            viralHTML = `
+
+                <div class="clip">
+
+                    <h2>
+                        🔥 Viral Clips
+                    </h2>
+
+                    <p>
+                        No strong viral moments were found.
+                    </p>
+
+                </div>
+
+            `;
+
+        }
+
+
+        /* =================================================
+           FINAL HOOK
+        ================================================= */
+
+        const hookHTML =
+            analysisData.hook
+            ?
+
+            `
+
+            <div class="clip">
+
+                <div class="hook-label">
+                    🧠 AI-GENERATED HOOK
+                </div>
+
+                <div class="hook">
+                    ${
+                        escapeHTML(
+                            analysisData.hook
+                        )
+                    }
+                </div>
+
+            </div>
+
+            `
+
+            :
+
+            "";
+
+
+        /* =================================================
+           TRANSCRIPT
+        ================================================= */
+
+        results.innerHTML = `
+
+            ${viralHTML}
+
+            ${hookHTML}
+
+            <div class="clip">
+
+                <h3>
+                    🎙️ AI Transcript
+                </h3>
+
+                <p class="transcript">
+                    ${
+                        escapeHTML(
+                            combinedTranscript ||
+                            "No speech was detected."
+                        )
+                    }
+                </p>
+
+            </div>
+
+        `;
+
+
+        /* =================================================
+           CLEAN FFMPEG MEMORY
+        ================================================= */
+
+        try {
+
+            await ffmpeg.deleteFile(
+                "input.mp4"
+            );
+
+        }
+
+        catch {}
+
 
     }
 
-  }
-};
+    catch (error) {
+
+        console.error(
+            "ClipAI error:",
+            error
+        );
 
 
-// ==========================================
-// FORMAT TIME
-// ==========================================
+        if (progressFill) {
 
-function formatTime(seconds) {
+            progressFill.style.width =
+                "0%";
 
-  seconds =
-    Number(seconds) || 0;
+        }
 
 
-  const minutes =
-    Math.floor(
-      seconds / 60
-    );
+        if (progressText) {
+
+            progressText.innerText =
+                "❌ Processing failed";
+
+        }
 
 
-  const remaining =
-    Math.floor(
-      seconds % 60
-    );
+        status.innerText =
+            "❌ ClipAI encountered an error.";
 
 
-  return (
-    String(minutes)
-      .padStart(2, "0") +
-    ":" +
-    String(remaining)
-      .padStart(2, "0")
-  );
+        status.className =
+            "error";
+
+
+        results.innerHTML = `
+
+            <div class="clip">
+
+                <h3>
+                    ❌ Error
+                </h3>
+
+                <p>
+                    ${
+                        escapeHTML(
+                            error.message ||
+                            "Unknown error."
+                        )
+                    }
+                </p>
+
+            </div>
+
+        `;
+
+    }
+
+
+    button.disabled =
+        false;
 
 }
 
 
-// ==========================================
-// JSON RESPONSE
-// ==========================================
+/* =========================================================
+   FORMAT DURATION
+========================================================= */
 
-function json(
-  data,
-  status,
-  cors
+function formatDuration(
+    seconds
 ) {
 
-  return new Response(
-    JSON.stringify(data),
-    {
+    seconds =
+        Math.max(
+            0,
+            Math.floor(
+                Number(seconds) || 0
+            )
+        );
 
-      status:
-        status,
 
-      headers: {
+    const hours =
+        Math.floor(
+            seconds / 3600
+        );
 
-        "Content-Type":
-          "application/json",
 
-        ...cors
+    const minutes =
+        Math.floor(
+            (
+                seconds % 3600
+            ) / 60
+        );
 
-      }
+
+    const remaining =
+        seconds % 60;
+
+
+    if (hours > 0) {
+
+        return (
+            hours +
+            "h " +
+            minutes +
+            "m"
+        );
 
     }
-  );
+
+
+    return (
+        minutes +
+        "m " +
+        remaining +
+        "s"
+    );
 
 }
+
+
+/* =========================================================
+   FORMAT FILE SIZE
+========================================================= */
+
+function formatBytes(
+    bytes
+) {
+
+    if (!bytes) {
+        return "0 Bytes";
+    }
+
+
+    const units = [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB",
+        "TB"
+    ];
+
+
+    const i =
+        Math.floor(
+            Math.log(bytes) /
+            Math.log(1024)
+        );
+
+
+    return (
+        (
+            bytes /
+            Math.pow(
+                1024,
+                i
+            )
+        )
+        .toFixed(2)
+        +
+        " " +
+        units[i]
+    );
+
+}
+
+
+/* =========================================================
+   FORMAT VIDEO TIME
+========================================================= */
+
+function formatTime(
+    seconds
+) {
+
+    seconds =
+        Number(seconds) || 0;
+
+
+    const hours =
+        Math.floor(
+            seconds / 3600
+        );
+
+
+    const minutes =
+        Math.floor(
+            (
+                seconds % 3600
+            ) / 60
+        );
+
+
+    const remaining =
+        Math.floor(
+            seconds % 60
+        );
+
+
+    if (hours > 0) {
+
+        return (
+            String(hours)
+                .padStart(2, "0") +
+            ":" +
+            String(minutes)
+                .padStart(2, "0") +
+            ":" +
+            String(remaining)
+                .padStart(2, "0")
+        );
+
+    }
+
+
+    return (
+        String(minutes)
+            .padStart(2, "0") +
+        ":" +
+        String(remaining)
+            .padStart(2, "0")
+    );
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHTML(
+    text
+) {
+
+    return String(text)
+
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
+}
+
+</script>
